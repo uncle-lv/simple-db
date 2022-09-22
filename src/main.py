@@ -28,9 +28,9 @@ class Statement:
         raise Exception(f'Unrecognized statement: {command}')
 
     def execute(self) -> None:
-        if type == StatementType.INSERT:
+        if self.type == StatementType.INSERT:
             print('This is where we would do an insert.')
-        elif type == StatementType.SELECT:
+        elif self.type == StatementType.SELECT:
             print('This is where we would do a select.')
 
 
