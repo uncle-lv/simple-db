@@ -1,3 +1,5 @@
+from io import BufferedRandom
+import sys
 from enum import Enum, unique
 from typing import List
 
@@ -28,12 +30,27 @@ class Row:
     
 
 class Table:
+    file: BufferedRandom
     row_num: int
     pages: List[Row]
 
-    def __init__(self) -> None:
+    def __init__(self, db: str) -> None:
+        file = open(db, 'r+', encoding='utf-8')
+        self.file = file
         self.row_num = 0
         self.pages = []
+        self.__load()
+
+    def __load(self) -> None:
+        data = self.file.readlines()
+        for line in data:
+            result = parse('{id:d} {username} {email}\n', line)
+            row = Row(result['id'], result['username'], result['email'])
+            self.pages.append(row)
+            self.row_num += 1
+
+    def __del__(self) -> None:
+        self.file.close()
 
 
 class Statement:
@@ -67,6 +84,7 @@ class Statement:
 
     def __insert(self) -> int:
         row_num = self.table.row_num
+        self.table.file.write(f'{self.row_to_insert.id} {self.row_to_insert.username} {self.row_to_insert.email}\n')
         self.table.pages.append(self.row_to_insert)
         self.table.row_num += 1
         return self.table.row_num - row_num
@@ -84,8 +102,8 @@ def do_meta_command(command: str) -> MetaCommandResult:
         return MetaCommandResult.UNCOGNIZED
     
 
-def main():
-    table = Table()
+def main(db: str):
+    table = Table(db)
     while True:
         command = input('db > ')
         if command.startswith('.'):
@@ -105,4 +123,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv[1])
