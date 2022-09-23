@@ -1,4 +1,7 @@
 from enum import Enum, unique
+from typing import List
+
+from parse import parse
 
 
 @unique
@@ -13,15 +16,44 @@ class StatementType(Enum):
     SELECT = 1
 
 
+class Row:
+    id: int
+    username: str
+    email: str
+
+    def __init__(self, id: int, username: str, email: str) -> None:
+        self.id = id
+        self.username = username
+        self.email = email
+    
+
+class Table:
+    row_num: int
+    pages: List[Row]
+
+    def __init__(self) -> None:
+        self.row_num = 0
+        self.pages = []
+
+
 class Statement:
     type: StatementType
+    row_to_insert: Row
+    table: Table
 
-    def __init__(self, command: str) -> None:
-        if 'INSERT' == (command[:6]).upper():
+    def __init__(self, command: str, table: Table) -> None:
+        self.table = table
+        upper_command = command.upper()
+        if 'INSERT' == upper_command[:6]:
             self.type = StatementType.INSERT
+            result = parse('INSERT {id:d} {username} {email}', upper_command)
+            if result is None or len(result.spans) < 3:
+                raise Exception('Syntax error. Could not parse statement.')
+            
+            self.row_to_insert = Row(result['id'], result['username'], result['email'])
             return
 
-        if 'SELECT' == command[:6].upper():
+        if 'SELECT' == upper_command[:6]:
             self.type = StatementType.SELECT
             return
 
@@ -29,10 +61,19 @@ class Statement:
 
     def execute(self) -> None:
         if self.type == StatementType.INSERT:
-            print('This is where we would do an insert.')
+            self.__insert()
         elif self.type == StatementType.SELECT:
-            print('This is where we would do a select.')
+            self.__select()
 
+    def __insert(self) -> int:
+        row_num = self.table.row_num
+        self.table.pages.append(self.row_to_insert)
+        self.table.row_num += 1
+        return self.table.row_num - row_num
+
+    def __select(self) -> List[Row]:
+        for row in self.table.pages:
+            print(f'({row.id}, {row.username}, {row.email})')
 
 
 def do_meta_command(command: str) -> MetaCommandResult:
@@ -44,6 +85,7 @@ def do_meta_command(command: str) -> MetaCommandResult:
     
 
 def main():
+    table = Table()
     while True:
         command = input('db > ')
         if command.startswith('.'):
@@ -55,7 +97,7 @@ def main():
                 continue
 
         try:
-            stat = Statement(command)
+            stat = Statement(command, table)
             stat.execute()
             print('Executed.')
         except Exception as e:
